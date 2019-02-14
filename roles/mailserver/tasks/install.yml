@@ -193,7 +193,7 @@
     dest: /etc/dovecot/dovecot.conf
 
 - name: Update post-certificate-renewal task
-  template:
+  copy:
     content: "#!/bin/bash\n\nservice dovecot restart\n"
     dest: /etc/letsencrypt/post-renew/dovecot.sh
     mode: 0755
