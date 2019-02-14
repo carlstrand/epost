@@ -1,0 +1,23 @@
+CREATE TABLE virtual_domains ( id SERIAL PRIMARY KEY, name VARCHAR(50) UNIQUE NOT NULL );
+CREATE TABLE virtual_users ( id SERIAL PRIMARY KEY, domain_id INT NOT NULL, password VARCHAR(106) NOT NULL, email VARCHAR(100) UNIQUE NOT NULL, FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE );
+CREATE TABLE virtual_aliases ( id SERIAL PRIMARY KEY, domain_id INT NOT NULL, source VARCHAR(100) NOT NULL, destination VARCHAR(100) NOT NULL, FOREIGN KEY (domain_id) REFERENCES virtual_domains(id) ON DELETE CASCADE );
+
+{% for virtual_domain in mailserver_virtual_domains %}
+  INSERT INTO virtual_domains (id, name) VALUES ('{{ virtual_domain.pk_id }}', '{{ virtual_domain.name }}');
+{% endfor %}
+
+{% for virtual_user in mailserver_virtual_users %}
+  INSERT INTO virtual_users  (domain_id, password , email)
+    VALUES (
+      '{{ virtual_user.domain_pk_id }}',
+      '{{ virtual_user.password_hash }}',
+      '{{ virtual_user.account }}@{{ virtual_user.domain }}'
+    );
+{% endfor %}
+
+{% if mailserver_virtual_aliases is defined %}
+  {% for virtual_alias in mailserver_virtual_aliases %}
+    INSERT INTO virtual_aliases (domain_id, source, destination) VALUES ('{{ virtual_alias.domain_pk_id }}', '{{ virtual_alias.source }}', '{{virtual_alias.destination }}');
+  {% endfor %}
+{% endif %}
+

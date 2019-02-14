@@ -1,0 +1,64 @@
+---
+
+mailserver_admin_email: "{{ mailserver_main_user_name }}@{{ mailserver_domain }}"
+mailserver_autoconfig_hostname: "autoconfig.{{ mailserver_domain }}"
+
+mailserver_aws_ec2_elastic_ip: no
+mailserver_aws_install_cli: no
+mailserver_aws_region: "eu-west-1"
+mailserver_aws_r53_zone: no
+mailserver_aws_s3_backup_bucket: ~
+mailserver_aws_s3_backup_bucket_enable_dkim_keys: false
+mailserver_aws_s3_backup_bucket_enable_s3_restore: false
+
+mailserver_db_admin_password: "password"
+mailserver_db_admin_username: "root"
+mailserver_db_database: "mailserver"
+mailserver_db_host: 127.0.0.1
+mailserver_db_pgsql_install: true
+mailserver_db_password: "password"
+mailserver_db_username: "mailuser"
+
+mailserver_db_opendmarc_database: opendmarc
+
+mailserver_domain: "mail.zvea.co"
+mailserver_friendly_networks: [ ]
+mailserver_header_privacy: 1
+
+mailserver_main_user_name: "zvea"
+
+mailserver_mail_dir: /var/mail/vhosts
+
+mailserver_redis_install: false
+mailserver_redis_host: 127.0.0.1
+mailserver_redis_port: 6379
+
+mailserver_server_hostname: "srvr.{{ mailserver_domain }}"
+
+mailserver_virtual_aliases:
+  - source: "admin@{{ mailserver_domain }}"
+    destination: "{{ mailserver_admin_email }}"
+    domain_pk_id: 1
+  - source: "root@{{ mailserver_domain }}"
+    destination: "{{ mailserver_admin_email }}"
+    domain_pk_id: 1
+  - source: "postmaster@{{ mailserver_domain }}"
+    destination: "{{ mailserver_admin_email }}"
+    domain_pk_id: 1
+  - source: "webmaster@{{ mailserver_domain }}"
+    destination: "{{ mailserver_admin_email }}"
+    domain_pk_id: 1
+  - source: "abuse@{{ mailserver_domain }}"
+    destination: "{{ mailserver_admin_email }}"
+    domain_pk_id: 1
+
+mailserver_virtual_domains:
+  - name: "{{ mailserver_domain }}"
+    pk_id: 1
+
+mailserver_virtual_users:
+  - account: "{{ mailserver_main_user_name }}"
+    domain: "{{ mailserver_domain }}"
+    password_hash: |-
+      $6$2qWeQLBahbfcmOQJ$RLKAOEWdt2gU8/ltKjRdelj51KvW4QKzAhCasAcHwqDy736nttxbS4qnL9i9O2j66YRRqgXUbJFNndG5BB6mR.
+    domain_pk_id: 1
