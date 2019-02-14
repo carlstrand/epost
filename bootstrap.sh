@@ -1,11 +1,10 @@
 #!/bin/bash
-sudo apt-get update -qq
+sudo apt update -y
+sudo apt upgrade -y
 sudo apt install -y software-properties-common apt-utils locales
-sudo apt install -y libffi-dev libssl-dev libyaml-cpp-dev apt-transport-https
-sudo apt install -y python python-dev python-pip python-setuptools git build-essential 
+sudo apt install -y libffi-dev libssl-dev libyaml-cpp-dev apt-transport-https python python-dev python-pip python-setuptools git build-essential 
 sudo pip install pip --upgrade -qqq
-sudo pip install setuptools paramiko pycparser pycrypto --upgrade -qqq
-sudo pip install virtualenv ansible ansible-lint
+sudo pip install psycopg2 setuptools paramiko pycparser pycrypto virtualenv ansible ansible-lint --upgrade -qqq
 
 git clone https://github.com/carlstrand/epost.git
 cd ~/epost
@@ -15,4 +14,4 @@ cd ~/epost
 #sudo apt update
 #sudo apt install rspamd
 
-sudo ansible-playbook tasks/main.yml -vvv
+sudo ansible-playbook tasks/main.yml -vvv --check
