@@ -1,4 +1,5 @@
 #!/bin/bash
+
 export DEBIAN_FRONTEND=noninteractive
 export PYPY3_VERSION=pypy3.5-v7.0.0
 export PYPY3_URL=https://bitbucket.org/pypy/pypy/downloads/$PYPY3_VERSION-linux64.tar.bz2
@@ -10,7 +11,7 @@ export PIP3_BIN=/opt/$PYPY3_VERSION/bin/pipi3
 
 curl -s $BOOTSTRAP_BASE_URL/env-setup.sh | sudo bash
 curl -s $BOOTSTRAP_BASE_URL/env-apt.sh | sudo bash
-curl -s $BOOTSTRAP_BASE_URL/locale-setup.sh | sudo bash
+#curl -s $BOOTSTRAP_BASE_URL/locale-setup.sh | sudo bash
 
 mkdir -p $ANSIBLE_WORKDIR
 mkdir -p $PYPY3_BIN

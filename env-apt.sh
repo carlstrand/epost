@@ -1,9 +1,7 @@
 #!/bin/bash
 
-sudo apt update --quiet --yes && sudo apt upgrade --quiet --yes
-
+sudo apt --quiet --yes update  && sudo apt --quiet --yes upgrade
 sudo apt --quiet --yes install \
-        software-properties-common \
         apt-transport-https \
         apt-utils \
         libtinfo-dev \
