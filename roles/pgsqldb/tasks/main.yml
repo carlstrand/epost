@@ -1,0 +1,28 @@
+# file: postgresql/tasks/main.yml
+
+# - include_vars: "{{ item }}"
+#   with_first_found:
+#     - "../vars/{{ ansible_os_family }}.yml"
+#     - "../vars/empty.yml"
+#   tags: [always]
+
+- import_tasks: install_apt.yml
+  tags: [postgresql, postgresql-install]
+
+- import_tasks: extensions.yml
+  tags: [postgresql, postgresql-extensions]
+
+- import_tasks: configure.yml
+  tags: [postgresql, postgresql-configure]
+
+- import_tasks: users.yml
+  tags: [postgresql, postgresql-users]
+
+- import_tasks: databases.yml
+  tags: [postgresql, postgresql-databases]
+
+- import_tasks: schemas.yml
+  tags: [postgresql, postgresql-schemas]
+
+- import_tasks: users_privileges.yml
+  tags: [postgresql, postgresql-users]

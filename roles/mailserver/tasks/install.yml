@@ -1,0 +1,272 @@
+---
+
+- name: Install necessities and nice-to-haves
+  apt:
+    pkg:
+      [
+        'certbot',
+        'clamav',
+        'clamav-daemon',
+        'cron',
+        'curl',
+        'dnsutils',
+        'dovecot-core',
+        'dovecot-imapd',
+        'dovecot-lmtpd',
+        'dovecot-managesieved',
+        'dovecot-pop3d',
+        'fail2ban',
+        'jq',
+        'libdbd-pg-perl',
+        'libdbi-perl',
+        'libsasl2-modules',
+        'nginx',
+        'opendkim',
+        'opendkim-tools',
+        'opendmarc',
+        'postfix',
+        'postfix-pcre',
+        'postgrey',
+        'rspamd',
+        'rsync',
+        'rsyslog',
+        'sasl2-bin',
+        'nodejs'
+      ]
+    state: present
+    update_cache: yes
+  register: mailserver_apt_install
+  until: mailserver_apt_install is success
+  retries: 1
+
+- name: Install AWS CLI
+  pip:
+    name: awscli
+  when: mailserver_aws_install_cli
+  register: mailserver_awscli_install
+  until: mailserver_awscli_install is success
+  retries: 1
+
+# - name: Install postgresql
+#   apt:
+#     pkg:
+#       [
+#         'postgresql',
+#         'postgresql-contrib',
+#         'libpam-pgsql',
+#         'python-psycopg2',
+#         'dovecot-pgsql',
+#         'postfix-pgsql',
+#       ]
+#     state: present
+#   register: mailserver_pgsql_install
+#   until: mailserver_pgsql_install is success
+#   retries: 1
+#   when: mailserver_db_pgsql_install
+
+- name: Install Redis
+  apt:
+    pkg: redis-server
+    state: present
+  register: mailserver_redis_install
+  until: mailserver_redis_install is success
+  retries: 1
+  when: mailserver_redis_install
+
+- name: Create directory for LetsEncrypt configuration and certificates
+  file:
+    state: directory
+    path: '{{ item }}'
+    group: root
+    owner: root
+  loop:
+    - /etc/letsencrypt
+    - /etc/letsencrypt/pre-renew
+    - /etc/letsencrypt/post-renew
+    - /etc/letsencrypt/live
+
+- name: Modify permissions to allow ssl-cert group access
+  file:
+    path: /etc/letsencrypt/archive
+    owner: root
+    mode: 0750
+    state: directory
+  when: local_env is defined
+
+- name: Install generate script for LetsEncrypt
+  template:
+    src: letsencrypt-gencert.sh.j2
+    dest: /etc/letsencrypt/letsencrypt-gencert
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Install crontab entry for LetsEncrypt
+  template:
+    src: letsencrypt-renew.sh.j2
+    dest: /etc/cron.daily/letsencrypt-renew
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Create strong Diffie-Hellman group
+  command: openssl dhparam -out /etc/ssl/private/dhparam2048.pem 2048
+  args:
+    creates: /etc/ssl/private/dhparam2048.pem
+
+- name: Ensure Nginx site directories
+  file:
+    group: root
+    mode: 0755
+    owner: root
+    path: '{{ item }}'
+    state: directory
+  loop:
+    - /etc/nginx/sites-enabled
+    - /etc/nginx/sites-available
+  notify:
+    - reload nginx
+
+- name: Remove default Nginx site
+  file:
+    path: '{{ item }}'
+    state: absent
+  loop:
+    - /etc/nginx/conf.d/default
+    - /etc/nginx/sites-enabled/default
+    - /etc/nginx/sites-available/default
+  notify:
+    - reload nginx
+
+- name: Create Nginx config
+  template:
+    dest: /etc/nginx/nginx.conf
+    group: root
+    owner: root
+    src: nginx/nginx.conf.j2
+  notify:
+    - reload nginx
+
+- name: Create postfix maps directory
+  file:
+    path: /etc/postfix/maps
+    state: directory
+    owner: root
+    group: root
+  when: mailserver_header_privacy == 1
+
+- name: Copy header_checks
+  template:
+    src: postfix/header_checks
+    dest: /etc/postfix/maps/header_checks
+    owner: root
+    group: root
+  when: mailserver_header_privacy == 1
+
+- name: Create vmail group
+  group:
+    name: vmail
+    state: present
+    gid: '5000'
+
+- name: Create vmail user
+  user:
+    name: vmail
+    group: vmail
+    state: present
+    uid: '5000'
+    home: '{{ mailserver_mail_dir }}'
+    shell: /usr/sbin/nologin
+
+- name: Copy dovecot.conf into place
+  template:
+    src: dovecot/dovecot.conf.j2
+    dest: /etc/dovecot/dovecot.conf
+
+- name: Update post-certificate-renewal task
+  copy:
+    content: "#!/bin/bash\n\nservice dovecot restart\n"
+    dest: /etc/letsencrypt/post-renew/dovecot.sh
+    mode: 0755
+    owner: root
+    group: root
+
+- name: Create OpenDKIM config directory
+  file:
+    state: directory
+    path: /etc/opendkim
+    group: opendkim
+    owner: opendkim
+
+- name: Put opendkim.conf into place
+  template:
+    src: rspamd/opendkim.conf.j2
+    dest: /etc/opendkim.conf
+    owner: opendkim
+    group: opendkim
+  notify:
+    - restart opendkim
+    - restart postfix
+
+- name: Patch opendmarc scripts (https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=742447)
+  lineinfile:
+    dest: '/usr/sbin/{{ item }}'
+    regexp: '^require DBD::'
+    line: 'require DBD::pgsql;'
+  with_items:
+    - opendmarc-import
+    - opendmarc-reports
+    - opendmarc-params
+
+- name: Patch opendmarc scripts part deux (https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=742447)
+  lineinfile:
+    dest: '/usr/sbin/{{ item }}'
+    regexp: '^my \$dbscheme'
+    line: 'my $dbscheme     = "pgsql";'
+  with_items:
+    - opendmarc-reports
+    - opendmarc-import
+
+- name: Create OpenDMARC configuration directory
+  file:
+    state: directory
+    path: /etc/opendmarc
+
+- name: Copy OpenDMARC defaults file into place
+  template:
+    src: rspamd/opendmarc.j2
+    dest: /etc/default/opendmarc
+    owner: root
+    group: root
+  notify:
+    - restart opendmarc
+    - restart postfix
+
+- name: Copy check-rbl into place
+  template:
+    src: opt_check-rbl.pl
+    dest: /opt/check-rbl.pl
+    owner: root
+    group: root
+
+- name: Install nightly check-rbl cronjob
+  cron:
+    name: 'check-rbl'
+    hour: '2'
+    minute: '0'
+    job: 'perl /opt/check-rbl.pl -i {{ default_ipv4.address }}'
+  when: default_ipv4 is defined
+
+- name: Create directory for mail autoconfiguration virtualhost
+  file:
+    state: directory
+    path: /var/www/autoconfig
+    group: www-data
+    owner: root
+
+- name: Create directory holding the autoconfig XML file
+  file:
+    state: directory
+    path: /var/www/autoconfig/mail
+    group: www-data
+    owner: root

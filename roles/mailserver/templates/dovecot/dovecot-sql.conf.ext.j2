@@ -1,0 +1,6 @@
+
+driver = pgsql
+connect = host={{ mailserver_db_host }} dbname={{ mailserver_db_database }} user={{ mailserver_db_username }} password={{ mailserver_db_password }}
+default_pass_scheme = SHA512-CRYPT
+iterate_query = SELECT email AS user FROM virtual_users
+password_query = SELECT email AS user, password FROM virtual_users WHERE email = '%u';

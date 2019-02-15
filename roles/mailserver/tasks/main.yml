@@ -1,0 +1,11 @@
+---
+
+- name: Install Ansible PDM Mailserver
+  include: install.yml
+  tags:
+    - build
+
+- name: Configure Ansible PDM Mailserver
+  include: configure.yml
+  tags:
+    - configure

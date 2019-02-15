@@ -1,0 +1,17 @@
+mail_plugins = $mail_plugins
+mail_location = maildir:{{ mailserver_mail_dir }}/%d/%n
+maildir_stat_dirs=yes
+
+namespace inbox {
+
+  inbox = yes
+}
+
+mail_uid = 5000
+mail_gid = 5000
+
+mail_privileged_group = vmail
+
+first_valid_gid = 5000
+last_valid_gid = 5000
+

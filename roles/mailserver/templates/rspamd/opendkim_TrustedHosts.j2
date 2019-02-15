@@ -1,0 +1,8 @@
+127.0.0.1
+{{ (ansible_default_ipv4 | default({'address': ''}))["address"] }}
+{% for domain in ansible_pdm_mailserver_virtual_domains %}
+{{ domain.name }}
+{% endfor %}
+{% for domain in ansible_pdm_mailserver_virtual_domains %}
+{{ ansible_pdm_mailserver_domain }}
+{% endfor %}

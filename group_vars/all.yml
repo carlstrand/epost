@@ -1,0 +1,502 @@
+
+
+# Databases
+#################################################################################
+
+db_name_opendmarc: opendmarc
+db_name_dovecot: mailserver
+db_name_rcube: rcube
+
+# General
+#################################################################################
+
+mailserver_domain: 'zvea.co'
+mailserver_server_hostname: 'mail.{{ mailserver_domain }}'
+mailserver_autoconfig_hostname: 'autoconfig.{{ mailserver_domain }}'
+
+mailserver_mail_dir: /var/mail/vhosts
+
+mailserver_main_user_name: 'zvea'
+mailserver_admin_email: '{{ mailserver_main_user_name }}@{{ mailserver_domain }}'
+mailserver_db_admin_password: 'password'
+mailserver_db_admin_username: 'root'
+mailserver_db_password: 'password'
+mailserver_db_username: 'mailuser'
+
+mailserver_friendly_networks: []
+mailserver_header_privacy: 1
+
+mailserver_virtual_aliases:
+  - source: 'admin@{{ mailserver_domain }}'
+    destination: '{{ mailserver_admin_email }}'
+    domain_pk_id: 1
+  - source: 'root@{{ mailserver_domain }}'
+    destination: '{{ mailserver_admin_email }}'
+    domain_pk_id: 1
+  - source: 'postmaster@{{ mailserver_domain }}'
+    destination: '{{ mailserver_admin_email }}'
+    domain_pk_id: 1
+  - source: 'webmaster@{{ mailserver_domain }}'
+    destination: '{{ mailserver_admin_email }}'
+    domain_pk_id: 1
+  - source: 'abuse@{{ mailserver_domain }}'
+    destination: '{{ mailserver_admin_email }}'
+    domain_pk_id: 1
+
+mailserver_virtual_domains:
+  - name: '{{ mailserver_domain }}'
+    pk_id: 1
+
+mailserver_virtual_users:
+  - account: '{{ mailserver_main_user_name }}'
+    domain: '{{ mailserver_domain }}'
+    password_hash: |-
+      $6$2qWeQLBahbfcmOQJ$RLKAOEWdt2gU8/ltKjRdelj51KvW4QKzAhCasAcHwqDy736nttxbS4qnL9i9O2j66YRRqgXUbJFNndG5BB6mR.
+    domain_pk_id: 1
+
+# AWS_S3
+#################################################################################
+
+mailserver_aws_ec2_elastic_ip: no
+mailserver_aws_install_cli: no
+mailserver_aws_region: 'eu-west-1'
+mailserver_aws_r53_zone: no
+mailserver_aws_s3_backup_bucket: ~
+mailserver_aws_s3_backup_bucket_enable_dkim_keys: false
+mailserver_aws_s3_backup_bucket_enable_s3_restore: false
+
+# Redis
+#################################################################################
+mailserver_redis_install: false
+mailserver_redis_host: 127.0.0.1
+mailserver_redis_port: 6379
+
+# Rspamd
+#################################################################################
+
+# opendmarc
+#################################################################################
+
+# Python
+#################################################################################
+
+python3_version_dotted: '3.6'
+python3_version: '{{python3_version_dotted | regex_replace("\.")}}'
+pip_version: '9.0.1'
+
+
+
+# Nginx
+#################################################################################
+
+# Postgresql
+#################################################################################
+
+postgresql_service_name: "postgresql"
+postgresql_bin_directory: /usr/bin
+
+postgresql_version: 10.0
+postgresql_encoding: 'UTF-8'
+postgresql_data_checksums: false
+postgresql_pwfile: ''
+
+postgresql_locale_parts:
+  - 'sv_SE' # Locale
+  - 'UTF-8' # Encoding
+postgresql_locale: "{{ postgresql_locale_parts | join('.') }}"
+postgresql_ctype_parts:
+  - 'sv_SE' # Locale
+  - 'UTF-8' # Encoding
+postgresql_ctype: "{{ postgresql_ctype_parts | join('.') }}"
+
+postgresql_admin_user: 'postgres'
+postgresql_default_auth_method: 'trust'
+
+postgresql_service_user: '{{ postgresql_admin_user }}'
+postgresql_service_group: '{{ postgresql_admin_user }}'
+postgresql_service_enabled: true
+
+postgresql_cluster_name: 'main'
+postgresql_cluster_reset: false
+
+postgresql_database_owner: '{{ postgresql_admin_user }}'
+
+postgresql_ext_install_contrib: no
+postgresql_ext_install_dev_headers: no
+postgresql_ext_install_postgis: no
+
+postgresql_ext_postgis_version: '2.1' # be careful: check whether the postgresql/postgis versions work together
+
+postgresql_ext_postgis_deps:
+  - libgeos-c1
+  - 'postgresql-{{ postgresql_version }}-postgis-{{ postgresql_ext_postgis_version }}'
+  - 'postgresql-{{ postgresql_version }}-postgis-scripts'
+
+postgresql_databases: "['{{ db_name_dovecot }}'', '{{ db_name_rcube }}', '{{ db_name_opendmarc }}']"
+
+postgresql_database_extensions: []
+postgresql_users: []
+postgresql_database_schemas: []
+postgresql_user_privileges: []
+
+postgresql_pg_hba_default:
+  - {
+      type: local,
+      database: all,
+      user: '{{ postgresql_admin_user }}',
+      address: '',
+      method: '{{ postgresql_default_auth_method }}',
+      comment: '',
+    }
+  - {
+      type: local,
+      database: all,
+      user: all,
+      address: '',
+      method: '{{ postgresql_default_auth_method }}',
+      comment: '"local" is for Unix domain socket connections only',
+    }
+  - {
+      type: host,
+      database: all,
+      user: all,
+      address: '127.0.0.1/32',
+      method: '{{ postgresql_default_auth_method }}',
+      comment: 'IPv4 local connections:',
+    }
+  - {
+      type: host,
+      database: all,
+      user: all,
+      address: '::1/128',
+      method: '{{ postgresql_default_auth_method }}',
+      comment: 'IPv6 local connections:',
+    }
+  - {
+      type: local,
+      database: all,
+      user: '{{ postgresql_admin_user }}',
+      address: '',
+      method: 'peer map=root_as_{{ postgresql_admin_user }}',
+      comment: 'Local root Unix user, passwordless access',
+    }
+
+postgresql_pg_hba_passwd_hosts: []
+postgresql_pg_hba_trust_hosts: []
+postgresql_pg_hba_custom: []
+
+postgresql_pg_ident:
+  - comment: 'root is allowed to login as {{ postgresql_admin_user }}'
+    mapname: 'root_as_{{ postgresql_admin_user }}'
+    system_username: '{{ postgresql_admin_user }}'
+    pg_username: '{{ postgresql_admin_user }}'
+
+postgresql_conf_directory: '/etc/postgresql/{{ postgresql_version }}/{{ postgresql_cluster_name }}'
+postgresql_hba_file: '{{ postgresql_conf_directory }}/pg_hba.conf'
+postgresql_ident_file: '{{ postgresql_conf_directory }}/pg_ident.conf'
+postgresql_varlib_directory_name: 'postgresql'
+postgresql_data_directory: '/var/lib/{{ postgresql_varlib_directory_name }}/{{ postgresql_version }}/{{ postgresql_cluster_name }}'
+postgresql_wal_directory: ''
+postgresql_pid_directory: '/var/run/postgresql'
+postgresql_external_pid_file: '{{ postgresql_pid_directory }}/{{ postgresql_version }}-{{ postgresql_cluster_name }}.pid'
+
+postgresql_listen_addresses:
+  - 'localhost'
+
+postgresql_port: 5432
+
+postgresql_max_connections: 100
+postgresql_superuser_reserved_connections: 3
+
+postgresql_unix_socket_directory: '' # (<= 9.2)
+postgresql_unix_socket_directories: # (>= 9.3)
+  - '{{ postgresql_pid_directory }}'
+
+postgresql_unix_socket_group: ''
+postgresql_unix_socket_permissions: '0777' # begin with 0 to use octal notation
+
+postgresql_pg_ctl_options: []
+postgresql_bonjour: off # advertise server via Bonjour
+postgresql_bonjour_name: '' # defaults to the computer name
+
+postgresql_authentication_timeout: 60s
+postgresql_ssl: off
+postgresql_ssl_ciphers:
+  - 'DEFAULT'
+  - '!LOW'
+  - '!EXP'
+  - '!MD5'
+  - '@STRENGTH'
+postgresql_ssl_prefer_server_ciphers: on
+postgresql_ssl_ecdh_curve: 'prime256v1'
+postgresal_ssl_dh_params_file: '' # (>= 10)
+postgresql_ssl_renegotiation_limit: 512MB # amount of data between renegotiations
+postgresql_ssl_cert_file: '/etc/ssl/certs/ssl-cert-snakeoil.pem' # (>= 9.2)
+postgresql_ssl_key_file: '/etc/ssl/private/ssl-cert-snakeoil.key' # (>= 9.2)
+postgresql_ssl_ca_file: '' # (>= 9.2)
+postgresql_ssl_crl_file: '' # (>= 9.2)
+postgresql_password_encryption: on
+postgresql_db_user_namespace: off
+postgresql_row_security: off # (>= 9.5)
+
+postgresql_krb_server_keyfile: ''
+postgresql_krb_srvname: 'postgres' # (<= 9.3)
+postgresql_krb_caseins_users: off
+
+postgresql_tcp_keepalives_idle: 0
+postgresql_tcp_keepalives_interval: 0
+postgresql_tcp_keepalives_count: 0
+
+postgresql_shared_buffers: 128MB # min 128kB
+postgresql_huge_pages: 'try' # on, off, or try
+postgresql_temp_buffers: 8MB # min 800kB
+postgresql_max_prepared_transactions: 0 # zero disables the feature
+postgresql_work_mem: 1MB # min 64kB
+postgresql_maintenance_work_mem: 16MB # min 1MB
+postgresql_replacement_sort_tuples: 150000 # (>= 9.6) limits use of replacement selection sort
+postgresql_autovacuum_work_mem: -1 # min 1MB, or -1 to use maintenance_work_mem
+postgresql_max_stack_depth: 2MB # min 100kB
+postgresql_dynamic_shared_memory_type: 'posix' # the default is the first option
+
+postgresql_temp_file_limit: -1
+postgresql_max_files_per_process: 1000 # min 25
+postgresql_shared_preload_libraries: []
+postgresql_vacuum_cost_delay: 0 # 0-100 milliseconds
+postgresql_vacuum_cost_page_hit: 1 # 0-10000 credits
+postgresql_vacuum_cost_page_miss: 10 # 0-10000 credits
+postgresql_vacuum_cost_page_dirty: 20 # 0-10000 credits
+postgresql_vacuum_cost_limit: 200 # 1-10000 credits
+postgresql_bgwriter_delay: 200ms # 10-10000ms between rounds
+postgresql_bgwriter_lru_maxpages: 100 # 0-1000 max buffers written/round
+postgresql_bgwriter_lru_multiplier: 2.0 # 0-10.0 multiplier on buffers scanned/round
+postgresql_bgwriter_flush_after: 0 # (>= 9.6) 0 disables,
+
+postgresql_effective_io_concurrency: 1 # 1-1000; 0 disables prefetching
+postgresql_max_worker_processes: 8 # (change requires restart)
+postgresql_max_parallel_workers_per_gather: 0 # (>= 9.6) taken from max_worker_processes
+postgresql_max_parallel_workers: 8 # (>= 10)
+postgresql_old_snapshot_threshold: -1 # (>= 9.6) 1min-60d; -1 disables; 0 is immediate
+postgresql_backend_flush_after: 0 # (>= 9.6) 0 disables, default is 0
+postgresql_wal_level: 'minimal' # minimal, archive (<= 9.5), hot_standby (<= 9.5), replica (>= 9.6), or logical
+postgresql_fsync: on 
+
+postgresql_synchronous_commit: 'on'
+postgresql_wal_sync_method: 'fsync'
+
+postgresql_full_page_writes: on
+postgresql_wal_compression: off # (>= 9.5)
+postgresql_wal_log_hints: off # also do full page writes of non-critical updates
+
+postgresql_wal_buffers: -1 # min 32kB, -1 sets based on shared_buffers
+postgresql_wal_writer_delay: 200ms # 1-10000 milliseconds
+postgresql_wal_writer_flush_after: 1MB # (>= 9.6) 0 disables
+postgresql_commit_delay: 0 # range 0-100000, in microseconds
+postgresql_commit_siblings: 5 # range 1-1000
+
+postgresql_checkpoint_segments: 3 # (<= 9.4) in logfile segments, min 1, 16MB each
+postgresql_max_wal_size: 1GB # (>= 9.5)
+postgresql_min_wal_size: 80MB # (>= 9.5)
+postgresql_checkpoint_flush_after: 0
+postgresql_checkpoint_timeout: 5min # range 30s-1d
+postgresql_checkpoint_completion_target: 0.5 # checkpoint target duration, 0.0 - 1.0
+postgresql_checkpoint_warning: 30s # 0 disables
+postgresql_archive_mode: off # Should be a string with quotes, but all templates need fixing first
+postgresql_archive_command: ''
+postgresql_archive_timeout: 0
+postgresql_max_wal_senders: 0
+postgresql_wal_sender_delay: 1s # walsender cycle time, 1-10000 milliseconds (<= 9.1)
+postgresql_wal_keep_segments: 0 # in logfile segments, 16MB each; 0 disables
+postgresql_replication_timeout: 60s # in milliseconds; 0 disables (<= 9.2)
+postgresql_wal_sender_timeout: 60s # in milliseconds; 0 disables (>= 9.3)
+postgresql_max_replication_slots: 0 # max number of replication slots
+postgresql_track_commit_timestamp: off # (>= 9.5)
+postgresql_synchronous_standby_num_sync: '' # >= 9.6 (NOTE: If you use the ANY/ALL syntax in v10, then note the new variable below)
+postgresql_synchronous_standby_choose_sync: 'FIRST' # >= 10
+postgresql_synchronous_standby_names: [] # '*' means 'all'
+postgresql_vacuum_defer_cleanup_age: 0
+postgresql_hot_standby: off
+postgresql_max_standby_archive_delay: 30s # -1 allows indefinite delay
+postgresql_max_standby_streaming_delay: 30s # -1 allows indefinite delay
+postgresql_wal_receiver_status_interval: 10s # 0 disables
+postgresql_hot_standby_feedback: off
+postgresql_wal_receiver_timeout: 60s
+postgresql_wal_retrieve_retry_interval: 5s # (>= 9.5)
+postgresql_max_logical_replication_workers: 4 # (>= 10) taken from max_worker_processes
+postgresql_max_sync_workers_per_subscription: 2 # (>= 10) taken from max_logical_replication_workers
+postgresql_enable_bitmapscan: on
+postgresql_enable_hashagg: on
+postgresql_enable_hashjoin: on
+postgresql_enable_indexscan: on
+postgresql_enable_indexonlyscan: on
+postgresql_enable_material: on
+postgresql_enable_mergejoin: on
+postgresql_enable_nestloop: on
+postgresql_enable_seqscan: on
+postgresql_enable_sort: on
+postgresql_enable_tidscan: on
+postgresql_seq_page_cost: 1.0 # measured on an arbitrary scale
+postgresql_random_page_cost: 4.0 # same scale as above
+postgresql_cpu_tuple_cost: 0.01 # same scale as above
+postgresql_cpu_index_tuple_cost: 0.005 # same scale as above
+postgresql_cpu_operator_cost: 0.0025 # same scale as above
+postgresql_parallel_tuple_cost: 0.1 # same scale as above (>= 9.6)
+postgresql_parallel_setup_cost: 1000.0 # same scale as above (>= 9.6)
+postgresql_min_parallel_relation_size: 8MB # (= 9.6) replaced by below two parameters in 10
+postgresql_min_parallel_table_scan_size: 8MB # (>= 10)
+postgresql_min_parallel_index_scan_size: 512kB # (>= 10)
+postgresql_effective_cache_size: 128MB
+postgresql_geqo: on
+postgresql_geqo_threshold: 12
+postgresql_geqo_effort: 5 # range 1-10
+postgresql_geqo_pool_size: 0 # selects default based on effort
+postgresql_geqo_generations: 0 # selects default based on effort
+postgresql_geqo_selection_bias: 2.0 # range 1.5-2.0
+postgresql_geqo_seed: 0.0 # range 0.0-1.0
+postgresql_default_statistics_target: 100 # range 1-10000
+postgresql_constraint_exclusion: 'partition' # on, off, or partition
+postgresql_cursor_tuple_fraction: 0.1 # range 0.0-1.0
+postgresql_from_collapse_limit: 8
+postgresql_join_collapse_limit: 8 # 1 disables collapsing of explicit
+postgresql_force_parallel_mode: 'off' # (>= 9.6)
+postgresql_log_destination: 'stderr'
+postgresql_logging_collector: off
+postgresql_log_directory: 'pg_log'
+postgresql_log_filename: 'postgresql-%Y-%m-%d_%H%M%S.log'
+postgresql_log_file_mode: '0600' # begin with 0 to use octal notation
+postgresql_log_truncate_on_rotation: off
+postgresql_log_rotation_age: 1d
+postgresql_log_rotation_size: 10MB
+postgresql_syslog_facility: 'LOCAL0'
+postgresql_syslog_ident: 'postgres'
+postgresql_syslog_sequence_numbers: on # (>= 9.6)
+postgresql_syslog_split_messages: on # (>= 9.6)
+postgresql_event_source: 'PostgreSQL'
+postgresql_client_min_messages: 'notice'
+postgresql_log_min_messages: 'warning'
+postgresql_log_min_error_statement: 'error'
+postgresql_log_min_duration_statement: -1
+postgresql_debug_print_parse: off
+postgresql_debug_print_rewritten: off
+postgresql_debug_print_plan: off
+postgresql_debug_pretty_print: on
+postgresql_log_checkpoints: off
+postgresql_log_connections: off
+postgresql_log_disconnections: off
+postgresql_log_duration: off
+postgresql_log_error_verbosity: 'default' # terse, default, or verbose messages
+postgresql_log_hostname: off
+postgresql_log_line_prefix: '%t '
+postgresql_log_lock_waits: off
+postgresql_log_statement: 'none' # none, ddl, mod, all
+postgresql_log_replication_commands: off
+postgresql_log_temp_files: -1
+postgresql_log_timezone: 'UTC'
+
+postgresql_track_activities: on
+postgresql_track_counts: on
+postgresql_track_io_timing: off # (>= 9.2)
+postgresql_track_functions: 'none' # none, pl, all
+postgresql_track_activity_query_size: 1024
+postgresql_update_process_title: on
+postgresql_stats_temp_directory: 'pg_stat_tmp'
+
+postgresql_log_parser_stats: off
+postgresql_log_planner_stats: off
+postgresql_log_executor_stats: off
+postgresql_log_statement_stats: off
+
+postgresql_autovacuum: on
+postgresql_log_autovacuum_min_duration: -1
+postgresql_autovacuum_max_workers: 3
+postgresql_autovacuum_naptime: 1min
+postgresql_autovacuum_vacuum_threshold: 50
+postgresql_autovacuum_analyze_threshold: 50
+postgresql_autovacuum_vacuum_scale_factor: 0.2
+postgresql_autovacuum_analyze_scale_factor: 0.1
+postgresql_autovacuum_freeze_max_age: 200000000
+postgresql_autovacuum_multixact_freeze_max_age: 400000000
+postgresql_autovacuum_vacuum_cost_delay: 20ms
+postgresql_autovacuum_vacuum_cost_limit: -1
+
+postgresql_search_path: # schema names
+  - '"$user"'
+  - 'public'
+postgresql_default_tablespace: '' # a tablespace name, "" uses the default
+postgresql_temp_tablespaces: [] # a list of tablespace names
+postgresql_check_function_bodies: on
+postgresql_default_transaction_isolation: 'read committed'
+postgresql_default_transaction_read_only: off
+postgresql_default_transaction_deferrable: off
+postgresql_session_replication_role: 'origin'
+
+postgresql_statement_timeout: 0 # in milliseconds, 0 is disabled
+postgresql_lock_timeout: 0 # in milliseconds, 0 is disabled (>= 9.3)
+postgresql_idle_in_transaction_session_timeout: 0 # in milliseconds, 0 is disabled (>= 9.6)
+postgresql_vacuum_freeze_min_age: 50000000
+postgresql_vacuum_freeze_table_age: 150000000
+postgresql_vacuum_multixact_freeze_min_age: 5000000 # (>= 9.3)
+postgresql_vacuum_multixact_freeze_table_age: 150000000 # (>= 9.3)
+
+postgresql_bytea_output: 'hex' # hex, escape
+postgresql_xmlbinary: 'base64'
+postgresql_xmloption: 'content'
+postgresql_gin_fuzzy_search_limit: 0 # (<= 9.2)
+postgresql_gin_pending_list_limit: 4MB # (>= 9.5)
+
+postgresql_datestyle:
+  - 'iso'
+  - 'mdy'
+
+postgresql_intervalstyle: 'postgres'
+postgresql_timezone: 'UTC'
+postgresql_timezone_abbreviations: 'Default'
+
+postgresql_extra_float_digits: 0 # min -15, max 3
+postgresql_client_encoding: False # actually defaults to database encoding
+
+postgresql_lc_messages: '{{ postgresql_locale }}'
+postgresql_lc_monetary: '{{ postgresql_locale }}'
+postgresql_lc_numeric: '{{ postgresql_locale }}'
+postgresql_lc_time: '{{ postgresql_locale }}'
+
+postgresql_default_text_search_config: 'pg_catalog.swedish'
+postgresql_dynamic_library_path: '$libdir'
+postgresql_local_preload_libraries: []
+postgresql_session_preload_libraries: []
+postgresql_deadlock_timeout: 1s
+postgresql_max_locks_per_transaction: 64 # min 10
+postgresql_max_pred_locks_per_transaction: 64 # min 10
+postgresql_max_pred_locks_per_relation: -2
+postgresql_max_pred_locks_per_page: 2 # (>= 10) min 0
+postgresql_array_nulls: on
+postgresql_backslash_quote: 'safe_encoding' # on, off, or safe_encoding
+postgresql_default_with_oids: off
+postgresql_escape_string_warning: on
+postgresql_lo_compat_privileges: off
+postgresql_quote_all_identifiers: off
+postgresql_sql_inheritance: on
+postgresql_standard_conforming_strings: on
+postgresql_synchronize_seqscans: on
+postgresql_transform_null_equals: off
+postgresql_exit_on_error: off
+postgresql_restart_after_crash: on
+
+postgresql_pgtune: no
+postgresql_pgtune_memory: no
+postgresql_pgtune_type: 'Web'
+postgresql_pgtune_connections: no
+postgresql_env:
+  LC_ALL: '{{ postgresql_locale }}'
+  LC_LCTYPE: '{{ postgresql_locale }}'
+
+postgresql_install_repository: true
+
+postgresql_apt_key_id: 'ACCC4CF8'
+postgresql_apt_key_url: 'https://www.postgresql.org/media/keys/ACCC4CF8.asc'
+postgresql_apt_repository: 'deb http://apt.postgresql.org/pub/repos/apt/ {{ ansible_distribution_release }}-pgdg main {{ postgresql_version }}'
+
+postgresql_apt_pin_priority: 500
+
+postgresql_version_terse: "{{ postgresql_version | replace('.', '') }}"
+postgresql_apt_py3_dependencies: ['python3-psycopg2', 'locales']
+postgresql_apt_dependencies: "{{ postgresql_apt_py3_dependencies if 'python3' in ansible_python_interpreter|default('') else postgresql_apt_py2_dependencies }}"

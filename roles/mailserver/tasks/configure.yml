@@ -1,0 +1,609 @@
+---
+- name: Ensure local hostnames
+  lineinfile:
+    dest: /etc/hosts
+    line: '127.0.0.1 localhost {{ ansible_hostname }} {{ mailserver_server_hostname }}'
+    regexp: ^127\.0\.0\.1
+  when: local_env is not defined
+
+# - name: Ensure password for root user for PGSQL
+#   pgsql_user:
+#     name: root
+#     password: "{{ mailserver_db_admin_password }}"
+#     state: present
+#     host: localhost
+#     priv: '*.*:ALL,GRANT'
+#     login_unix_socket: /var/run/pgsqld/mysqld.sock
+#   when:
+#     - mailserver_db_pgsql_install
+#     - mailserver_db_admin_username == 'root'
+#     - "'Access denied for user' in mailserver_admin_access.msg"
+
+# - name: Create database user for mail server
+#   postgresql_user:
+#     append_privs: yes
+#     login_host: '{{ mailserver_db_host }}'
+#     login_user: '{{ mailserver_db_admin_username }}'
+#     login_password: '{{ mailserver_db_admin_password }}'
+#     name: '{{ mailserver_db_username }}'
+#     password: '{{ mailserver_db_password }}'
+#     state: present
+#     host: '%'
+#     priv: '{{ mailserver_db_database }}.*:ALL'
+
+# - name: Copy import.sql
+#   template:
+#     src: postfix/sql/mailserver.sql.j2
+#     dest: /etc/postfix/import.sql
+#     owner: root
+#     group: root
+#     mode: 0600
+
+# - name: Import sql postfix
+#   postgresql_db:
+#     name: '{{ mailserver_db_database }}'
+#     state: restore
+#     login_host: '{{ mailserver_db_host }}'
+#     login_user: '{{ mailserver_db_username }}'
+#     login_password: '{{ mailserver_db_password }}'
+#     target: /etc/postfix/import.sql
+#   notify:
+#     - restart postfix
+#   tags:
+#     - skip_ansible_lint
+#   when: mailserver_db_created.changed
+
+- name: Copy additional postfix configuration files
+  template:
+    src: 'postfix/{{ item }}.j2'
+    dest: '/etc/postfix/{{ item }}'
+    owner: root
+    group: root
+  loop:
+    - virtual.j2
+    - main.cf
+    - master.cf
+    - sql/virtual-alias-maps.cf
+    - sql/virtual-mailbox-domains.cf
+    - sql/virtual-mailbox-maps.cf
+  notify:
+    - restart postfix
+
+- name: Ensure maildir is in place
+  file:
+    state: directory
+    path: '{{ mailserver_mail_dir }}'
+    owner: vmail
+    group: vmail
+    mode: 0770
+  register: mailserver_mail_dir_created
+
+- name: Ensure mail domain directories are in place
+  file:
+    state: directory
+    path: '{{ mailserver_mail_dir }}/{{ item.name }}'
+    owner: vmail
+    group: vmail
+    mode: 0770
+  loop: '{{ mailserver_virtual_domains }}'
+
+- name: Ensure mail user directories are in place
+  file:
+    state: directory
+    path: '{{ mailserver_mail_dir }}/{{ item.domain }}/{{ item.account }}'
+    owner: vmail
+    group: vmail
+    mode: 0770
+  loop: '{{ mailserver_virtual_users }}'
+
+- name: Copy additional Dovecot configuration files in place
+  template:
+    src: 'dovecot/conf.d_{{ item }}.j2'
+    dest: '/etc/dovecot/conf.d/{{ item }}'
+  loop:
+    - 10-auth.conf
+    - 10-logging.conf
+    - 10-mail.conf
+    - 10-master.conf
+    - 10-ssl.conf
+    - 15-lda.conf
+    - 15-mailboxes.conf
+    - 20-imap.conf
+    - 20-lmtp.conf
+    - 20-pop3.conf
+    - 90-plugin.conf
+    - 90-sieve.conf
+    - auth-sql.conf.ext
+  notify:
+    - restart dovecot
+
+- name: Template dovecot-sql.conf.ext
+  template:
+    src: dovecot/dovecot-sql.conf.ext.j2
+    dest: /etc/dovecot/dovecot-sql.conf.ext
+  notify:
+    - restart dovecot
+
+- name: Template dovecot.conf
+  template:
+    src: dovecot/dovecot.conf.j2
+    dest: /etc/dovecot/dovecot.conf.j2
+  notify:
+    - restart dovecot
+
+- name: Ensure correct permissions on Dovecot config directory
+  file:
+    state: directory
+    path: /etc/dovecot
+    group: dovecot
+    owner: vmail
+    mode: 0770
+    recurse: yes
+  notify:
+    - restart dovecot
+
+# - name: Configure rspamd redis settings
+#   template:
+#     mode: 0664
+#     src: etc_rspamd_local.d_redis.conf.j2
+#     dest: /etc/rspamd/local.d/redis.conf
+#   notify:
+#     - restart rspamd
+
+- name: Create OpenDKIM key directories
+  file:
+    state: directory
+    path: '/etc/opendkim/keys/{{ mailserver_domain }}'
+    group: opendkim
+    owner: opendkim
+  when: not mailserver_aws_s3_backup_bucket_enable_dkim_keys
+    or not mailserver_aws_s3_backup_bucket
+
+- name: Generate OpenDKIM keys
+  command: >-
+    opendkim-genkey -r -d {{ mailserver_domain }}
+    -D /etc/opendkim/keys/{{ mailserver_domain }}/
+  args:
+    creates: '/etc/opendkim/keys/{{ mailserver_domain }}/default.private'
+  when: not mailserver_aws_s3_backup_bucket_enable_dkim_keys
+    or not mailserver_aws_s3_backup_bucket
+
+- name: Put additional OpenDKIM configuration files into place
+  template:
+    src: 'rspamd/opendkim_{{ item }}.j2'
+    dest: '/etc/opendkim/{{ item }}'
+    owner: opendkim
+    group: opendkim
+  loop:
+    - KeyTable
+    - SigningTable
+    - TrustedHosts
+  notify:
+    - restart opendkim
+    - restart postfix
+  when: not mailserver_aws_s3_backup_bucket_enable_dkim_keys
+    or not mailserver_aws_s3_backup_bucket
+
+- name: Retrieve OpenDKIM keys from S3
+  command: >
+    aws s3 sync \
+      --region {{ mailserver_aws_region }} \
+      s3://{{ mailserver_aws_s3_backup_bucket }}/opendkim \
+      /etc/opendkim/
+  args:
+    creates: /etc/opendkim/KeyTable
+  when: mailserver_aws_s3_backup_bucket_enable_dkim_keys
+    and mailserver_aws_s3_backup_bucket
+  notify:
+    - restart opendkim
+    - restart postfix
+
+- name: Set OpenDKIM config directory permissions
+  file:
+    state: directory
+    path: /etc/opendkim
+    group: opendkim
+    owner: opendkim
+    mode: 0700
+    recurse: yes
+  notify:
+    - restart opendkim
+    - restart postfix
+
+- name: Copy OpenDMARC configuration file into place
+  template:
+    src: rspamd/opendmarc.conf.j2
+    dest: /etc/opendmarc.conf
+    owner: root
+    group: root
+  notify:
+    - restart opendmarc
+
+- name: Copy OpenDMARC ignore hosts file into place
+  template:
+    src: rspamd/opendmarc_ignore.hosts.j2
+    dest: /etc/opendmarc/ignore.hosts
+    owner: root
+    group: root
+
+- name: Fix OpenDMARC setting for Bionic
+  command: /lib/opendmarc/opendmarc.service.generate
+  args:
+    creates: /etc/systemd/system/opendmarc.service.d/override.conf
+  register: mailserver_opendmarc_bionic_fix
+  when: ansible_distribution_release == "bionic"
+
+- name: Reload SystemD after fix for OpenDMARC setting for Bionic
+  systemd:
+    daemon_reload: yes
+  when: mailserver_opendmarc_bionic_fix.changed
+  tags:
+    - skip_ansible_lint
+
+- name: Create database for OpenDMARC reports
+  postgresql_db:
+    login_host: '{{ mailserver_db_host }}'
+    login_user: '{{ mailserver_db_admin_username }}'
+    login_password: '{{ mailserver_db_admin_password }}'
+    name: '{{ mailserver_db_opendmarc_database }}'
+    state: present
+  register: mailserver_db_opendmarc_created
+
+- name: Create database user for OpenDMARC reports
+  postgresql_user:
+    append_privs: yes
+    login_host: '{{ mailserver_db_host }}'
+    login_user: '{{ mailserver_db_admin_username }}'
+    login_password: '{{ mailserver_db_admin_password }}'
+    name: '{{ mailserver_db_username }}'
+    password: '{{ mailserver_db_password }}'
+    state: present
+    priv: '{{ mailserver_db_opendmarc_database }}.*:ALL'
+
+- name: Copy opendmarc.sql
+  template:
+    src: sql/opendmarc.sql.j2
+    dest: /usr/share/doc/opendmarc/import.sql
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Import sql opendmarc
+  postgresql_db:
+    name: '{{ mailserver_db_opendmarc_database }}'
+    state: restore
+    login_host: '{{ mailserver_db_host }}'
+    login_user: '{{ mailserver_db_username }}'
+    login_password: '{{ mailserver_db_password }}'
+    target: /usr/share/doc/opendmarc/import.sql
+  when: mailserver_db_opendmarc_created.changed
+  tags:
+    - skip_ansible_lint
+  notify:
+    - restart opendmarc
+
+- name: Copy nightly OpenDMARC report generation script into place
+  template:
+    src: rspamd/opendmarc_report.sh.j2
+    dest: /etc/opendmarc/report.sh
+    owner: root
+    group: root
+    mode: 0755
+
+- name: Ensure initial report dat file exists with correct permissions
+  copy:
+    content: ''
+    dest: /var/run/opendmarc/opendmarc.dat
+    owner: opendmarc
+    group: opendmarc
+
+- name: Activate OpenDMARC report cronjob
+  cron:
+    name: 'OpenDMARC report'
+    hour: '2'
+    minute: '0'
+    job: >-
+      /bin/bash /etc/opendmarc/report.sh >>
+      /var/log/opendmarc_report.log 2>&1 ||
+      tail /var/log/opendmarc_report.log
+
+- name: Create the autoconfig XML file
+  template:
+    src: nginx/autoconfig_mail_config-v1.1.j2
+    dest: /var/www/autoconfig/mail/config-v1.1.xml
+    group: www-data
+    owner: root
+
+- name: Create autoconfig site
+  template:
+    src: nginx/autoconfig.conf.j2
+    dest: /etc/nginx/sites-available/autoconfig.conf
+  notify:
+    - reload nginx
+
+- name: Enable autoconfig site
+  file:
+    src: /etc/nginx/sites-available/autoconfig.conf
+    dest: /etc/nginx/sites-enabled/autoconfig.conf
+    state: link
+  notify:
+    - reload nginx
+
+- name: Copy Fail2ban filters for Dovecot
+  template:
+    src: fail2ban/filter.d_pdm-dovecot.conf.j2
+    dest: /etc/fail2ban/filter.d/pdm-dovecot.conf
+    mode: 0644
+    owner: root
+    group: root
+  notify:
+    - restart fail2ban
+
+- name: Copy Fail2ban filters for Postfix
+  template:
+    src: fail2ban/filter.d_pdm-postfix-sasl.conf.j2
+    dest: /etc/fail2ban/filter.d/pdm-postfix-sasl.conf
+    mode: 0644
+    owner: root
+    group: root
+  notify:
+    - restart fail2ban
+
+- name: Fix Fail2Ban Systemd backend
+  ini_file:
+    dest: /etc/fail2ban/jail.local
+    mode: 0644
+    option: backend
+    section: DEFAULT
+    value: "{{ 'systemd' if ansible_service_mgr == 'systemd' else 'auto' }}"
+  notify:
+    - restart fail2ban
+
+- name: Activate Fail2Ban Dovecot
+  ini_file:
+    create: yes
+    dest: /etc/fail2ban/jail.local
+    mode: 0644
+    option: '{{ item.key }}'
+    section: pdm-dovecot
+    value: '{{ item.value }}'
+  with_dict:
+    enabled: true
+    filter: pdm-dovecot
+    action: 'iptables-multiport[name=dovecot-pop3imap, port="pop3,pop3s,imap,imaps", protocol=tcp]'
+    logpath: /var/log/mail.log
+    maxretry: 3
+    findtime: 1200
+    bantime: 2400
+  notify:
+    - restart fail2ban
+
+- name: Activate Fail2Ban Postfix
+  ini_file:
+    create: yes
+    dest: /etc/fail2ban/jail.local
+    mode: 0644
+    option: '{{ item.key }}'
+    section: pdm-postfix-sasl
+    value: '{{ item.value }}'
+  with_dict:
+    enabled: true
+    filter: pdm-postfix-sasl
+    port: smtp,ssmtp,submission
+    logpath: /var/log/mail.log
+    maxretry: 3
+    findtime: 1200
+    bantime: 2400
+  notify:
+    - restart fail2ban
+
+- name: Check if inside AWS
+  uri:
+    url: http://169.254.169.254/latest/meta-data
+    timeout: 2
+  register: mailserver_aws_uri_check
+  failed_when: False
+
+- name: Gather AWS facts
+  action: ec2_metadata_facts
+  register: ec2_vars
+  when: mailserver_aws_uri_check.status == 200
+  until: ec2_vars | success
+  retries: 3
+  delay: 5
+
+- name: Ensures S3 backup and restore scripts
+  template:
+    dest: '{{ item.dest }}'
+    mode: 0750
+    src: '{{ item.src }}'
+  with_items:
+    - src: aws_s3_dovecot_backup.j2
+      dest: /usr/local/bin/aws_s3_dovecot_backup
+    - src: aws_s3_dovecot_restore.j2
+      dest: /usr/local/bin/aws_s3_dovecot_restore
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_s3_backup_bucket
+
+- name: Ensures S3 backup cron job
+  cron:
+    hour: '*'
+    job: 'PATH=$PATH /usr/local/bin/aws_s3_dovecot_backup > /var/log/aws_s3_dovecot_backup.log 2>&1'
+    name: Backup dovecot
+    minute: 0
+    weekday: 1-7
+
+- name: Restore mail from s3
+  command: /usr/local/bin/aws_s3_dovecot_restore
+  tags:
+    - skip_ansible_lint
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_s3_backup_bucket_enable_s3_restore
+    and mailserver_aws_s3_backup_bucket
+    and mailserver_mail_dir_created.changed
+
+- name: Associate Elastic IP
+  ec2_eip:
+    device_id: '{{ ansible_ec2_instance_id }}'
+    ip: '{{ mailserver_aws_ec2_elastic_ip }}'
+    region: '{{ mailserver_aws_region }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_ec2_elastic_ip
+
+- name: Associate R53 A records
+  route53:
+    command: create
+    overwrite: yes
+    record: '{{ item }}'
+    ttl: 30
+    type: A
+    value: '{{ mailserver_aws_ec2_elastic_ip if mailserver_aws_ec2_elastic_ip
+      else ansible_ec2_public_ipv4
+      }}'
+    zone: '{{ mailserver_aws_r53_zone }}'
+  with_items:
+    - '{{ mailserver_server_hostname }}'
+    - '{{ mailserver_autoconfig_hostname }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Associate R53 SPF record
+  route53:
+    command: create
+    overwrite: yes
+    record: '{{ mailserver_domain }}'
+    ttl: 30
+    type: TXT
+    value: '"v=spf1 ip4:{{
+      mailserver_aws_ec2_elastic_ip if mailserver_aws_ec2_elastic_ip
+      else ansible_ec2_public_ipv4 }} -all"'
+    zone: '{{ mailserver_aws_r53_zone }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Associate R53 Dmarc record
+  route53:
+    command: create
+    overwrite: yes
+    record: '_dmarc.{{ mailserver_domain }}'
+    ttl: 30
+    type: TXT
+    value: '"v=DMARC1; p=none"'
+    zone: '{{ mailserver_aws_r53_zone }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Grab dkim public key
+  shell: >-
+    bash -c "cat /etc/opendkim/keys/{{ mailserver_domain }}/default.txt |
+    tr '\n' ' ' |  tr '\t' ' ' | grep -oE '\"v=.*\" '"
+  register: dkim_public_key_data
+  ignore_errors: yes
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Associate R53 OpenDkim record
+  route53:
+    command: create
+    overwrite: yes
+    record: 'default._domainkey.{{ mailserver_domain }}'
+    ttl: 30
+    type: TXT
+    value: '{{ dkim_public_key_data.stdout }}'
+    zone: '{{ mailserver_aws_r53_zone }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Associate R53 MX record
+  route53:
+    command: create
+    overwrite: yes
+    record: '{{ mailserver_domain }}'
+    ttl: 30
+    type: MX
+    value: '10 {{ mailserver_server_hostname }}'
+    zone: '{{ mailserver_aws_r53_zone }}'
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_r53_zone
+
+- name: Pause for Eip and DNS
+  pause:
+    seconds: 90
+  when: ansible_ec2_instance_id is defined
+    and mailserver_aws_ec2_elastic_ip
+
+- name: Configure LetsEncrypt
+  template:
+    dest: /etc/letsencrypt/cli.conf
+    group: root
+    mode: 0644
+    owner: root
+    src: letsencrypt_cli.conf.j2
+
+- name: "Get an SSL certificate for {{ mailserver_domain }} from Let's Encrypt"
+  command: '/etc/letsencrypt/letsencrypt-gencert {{ mailserver_domain }}'
+  args:
+    creates: '/etc/letsencrypt/live/srvr.{{ mailserver_domain }}/privkey.pem'
+  when: local_env is not defined
+
+- name: Create live directory for testing keys
+  file:
+    dest: '/etc/letsencrypt/live/{{ item }}'
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - '{{ mailserver_autoconfig_hostname }}'
+    - '{{ mailserver_server_hostname }}'
+  when: local_env is defined
+
+- name: Create self-signed SSL certs for testing
+  command: |-
+    openssl req -x509 -sha256 -nodes -days 365 -newkey rsa:2048 -days 3650
+    -subj "/C=GB/ST=London/L=London/O=Dummy/CN={{ item }}"
+    -keyout /etc/letsencrypt/live/{{ item }}/privkey.pem
+    -out /etc/letsencrypt/live/{{ item }}/fullchain.pem
+  args:
+    creates: '/etc/letsencrypt/live/{{ item }}/privkey.pem'
+  with_items:
+    - '{{ mailserver_autoconfig_hostname }}'
+    - '{{ mailserver_server_hostname }}'
+  when: local_env is defined
+
+- name: Set permissions on combined SSL certs
+  file:
+    name: '/etc/letsencrypt/live/{{ item }}/fullchain.pem'
+    mode: 0644
+  with_items:
+    - '{{ mailserver_autoconfig_hostname }}'
+    - '{{ mailserver_server_hostname }}'
+  when: local_env is defined
+
+- name: Fix redis bind config for Bionic
+  lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^bind 127\.0\.0\.1'
+    line: 'bind 127.0.0.1'
+  when:
+    - ansible_distribution_release == "bionic"
+    - mailserver_redis_install
+
+- name: Start redis
+  service:
+    name: redis-server
+    state: started
+  when: mailserver_redis_install
+
+- name: Start core services
+  service:
+    name: '{{ item }}'
+    state: started
+  loop:
+    - rspamd
+    - fail2ban
+    - opendmarc
+    - opendkim
+    - postfix
+    - dovecot
+    - nginx
