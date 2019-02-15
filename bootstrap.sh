@@ -33,8 +33,8 @@ sudo virtualenv -p $PYPY3_BIN .
 source ./bin/activate
 
 sudo $PYPY3_BIN -m ensurepip
-sudo $PIP3_BIN install --upgrade pip
-sudo $PIP3_BIN install ansible ansible-lint ansible-review
+sudo bin/pip3 install --upgrade pip
+sudo bin/pip3 install ansible-lint ansible-review
 
 
 #sudo pypy3 psqlcom.py

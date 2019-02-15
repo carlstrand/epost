@@ -2,5 +2,5 @@
 - name: Ygggdrasil
   hosts: localhost
   roles:
-    - mailserver
-    - pgsqldb
+  - mailserver
+  - pgsqldb

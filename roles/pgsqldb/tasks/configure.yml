@@ -31,10 +31,12 @@
 
 - name: PostgreSQL | Ensure the locale for lc_collate and lc_ctype is generated | Debian
   become: yes
-  locale_gen: name="{{ item }}" state=present
+  locale_gen:
+    name: "{{ item }}"
+    state: present
   with_items:
-    - "{{ postgresql_locale }}"
-    - "{{ postgresql_ctype }}"
+  - "{{ postgresql_locale }}"
+  - "{{ postgresql_ctype }}"
   when: ansible_os_family == "Debian"
 
 
