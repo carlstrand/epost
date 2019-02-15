@@ -42,7 +42,7 @@ source ~/ansible/bin/activate
 sudo pypy3 -m ensurepip
 sudo pypy3 -m pip install --upgrade pip
 sudo pip3 install setuptools wheel libpq-dev ffi-dev psycopg2cffi pycrypto pycparser paramiko 
-sudo pip3 install ansible ansible-lint     
+sudo pip3 install ansible ansible-lint ansible-review
 sudo pypy3 psqlcom.py
 
-sudo apl-test -vvv
+#sudo apl-test -vvv
