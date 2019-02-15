@@ -33,15 +33,15 @@ sudo apt update -y && sudo apt upgrade -y
 sudo apt install -y apt-transport-https apt-utils locales virtualenv build-essential git
 sudo dpkg-reconfigure locales
 
-mkdir ~/ansible && sudo mkdir /opt/$PYPY3_VERSION/ && git clone -b dev $REPO_URL ~/ansible
+mkdir ~/ansible && mkdir ~/.local/$PYPY3_VERSION/ && git clone -b dev $REPO_URL ~/ansible
 
 #############################################
 wget -O pypy3.tar.bz2 $PYPY3_URL
-tar -xf pypy3.tar.bz2 -C /opt/$PYPY3_VERSION/
+tar -xf pypy3.tar.bz2 -C ~/.local/$PYPY3_VERSION/
 rm -f pypy3.tar.bz2 
 
 cd ~/ansible
-sudo virtualenv --python=/opt/$PYPY3_VERSION/bin/pypy3 ~/ansible
+sudo virtualenv --python=~/.local/$PYPY3_VERSION/bin/pypy3 ~/ansible
 source ~/ansible/bin/activate
 sudo pypy3 -m ensurepip
 sudo pypy3 -m pip install --upgrade pip
