@@ -33,7 +33,11 @@ sudo apt update -y && sudo apt upgrade -y
 sudo apt install -y apt-transport-https apt-utils locales virtualenv build-essential git
 sudo dpkg-reconfigure locales
 
-mkdir ~/ansible && mkdir ~/.local/$PYPY3_VERSION/ && git clone -b dev $REPO_URL ~/ansible
+mkdir ~/ansible
+
+mkdir ~/.local/$PYPY3_VERSION/
+
+git clone -b dev $REPO_URL ~/ansible
 
 #############################################
 wget -O pypy3.tar.bz2 $PYPY3_URL
