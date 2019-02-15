@@ -34,6 +34,7 @@ sudo apt install -y apt-transport-https apt-utils locales virtualenv build-essen
 sudo dpkg-reconfigure locales
 
 mkdir ~/ansible
+mkdir ~/local
 mkdir ~/local/$PYPY3_VERSION
 
 git clone -b dev $REPO_URL ~/ansible
