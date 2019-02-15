@@ -1,8 +1,8 @@
 #!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
 
-sudo apt update -y && sudo apt upgrade -y
-sudo apt install -y software-properties-common 
+sudo apt update -y -q && sudo apt upgrade -y -q
+sudo apt install -y -q software-properties-common 
 
 echo 'alias apl=ansible-playbook' >> ~/.bashrc 
 echo 'alias apl-def=ansible-playbook -i hosts site.yml' >> ~/.bashrc 
@@ -29,19 +29,18 @@ export LC_ALL="en_US.UTF-8"
 export LC_CTYPE="en_US.UTF-8"
 export LC_CTYPE="en_US.UTF-8"
 
-sudo apt update -y && sudo apt upgrade -y
+sudo apt update -y -q && sudo apt upgrade -y -q
 sudo apt install -y apt-transport-https apt-utils locales virtualenv build-essential git
 sudo dpkg-reconfigure locales
 
 mkdir ~/ansible
-
-mkdir ~/.local/$PYPY3_VERSION/
+mkdir ~/local/$PYPY3_VERSION
 
 git clone -b dev $REPO_URL ~/ansible
 
 #############################################
 wget -O pypy3.tar.bz2 $PYPY3_URL
-tar -xf pypy3.tar.bz2 -C ~/.local/$PYPY3_VERSION/
+tar -xf pypy3.tar.bz2 -C ~/local/$PYPY3_VERSION
 rm -f pypy3.tar.bz2 
 
 cd ~/ansible
