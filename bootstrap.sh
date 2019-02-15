@@ -29,7 +29,7 @@ rm -f pypy3.tar.bz2
 
 cd $ANSIBLE_WORKDIR
 
-sudo virtualenv -p $PYPY3_BIN .
+sudo virtualenv -p $PYPY3_BIN . --system-site-packages
 source ./bin/activate
 
 sudo $PYPY3_BIN -m ensurepip
