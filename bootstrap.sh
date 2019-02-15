@@ -29,7 +29,7 @@ sudo apt update -y && sudo apt upgrade -y
 sudo apt install -y software-properties-common apt-transport-https apt-utils locales virtualenv build-essential git
 sudo dpkg-reconfigure locales
 
-mkdir ~/ansible && git clone $REPO_URL ~/ansible
+mkdir ~/ansible && git clone -b dev $REPO_URL ~/ansible
 
 #############################################
 wget -O pypy3.tar.bz2 $PYPY3_URL
@@ -46,4 +46,3 @@ sudo pip3 install ansible ansible-lint
 sudo pypy3 psqlcom.py
 
 sudo apl-test -vvv
-        'python-setuptools',
