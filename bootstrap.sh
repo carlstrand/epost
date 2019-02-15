@@ -16,6 +16,8 @@ curl -s $BOOTSTRAP_BASE_URL/env-apt.sh | sudo bash
 mkdir -p $ANSIBLE_WORKDIR
 mkdir -p $PYPY3_BIN
 
+source ~/.bashrc 
+
 git clone --quiet --progress --single-branch --branch dev $REPO_URL $ANSIBLE_WORKDIR 
 
 #############################################
@@ -23,14 +25,16 @@ wget -O pypy3.tar.bz2 $PYPY3_URL
 tar -xf pypy3.tar.bz2 -C /opt/$PYPY3_VERSION --strip-components=1
 rm -f pypy3.tar.bz2 
 
+
+
 cd $ANSIBLE_WORKDIR
 
 sudo virtualenv -p $PYPY3_BIN .
-sudo source ./bin/activate
+source ./bin/activate
 
-sudo $PYPY3_BIN -m --quiet ensurepip
-sudo $PIP3_BIN install --upgrade pip --quiet --progress-bar pretty
-sudo $PIP3_BIN install ansible ansible-lint ansible-review --quiet --progress-bar pretty
+sudo $PYPY3_BIN -m ensurepip
+sudo $PIP3_BIN install --upgrade pip
+sudo $PIP3_BIN install ansible ansible-lint ansible-review
 
 
 #sudo pypy3 psqlcom.py
