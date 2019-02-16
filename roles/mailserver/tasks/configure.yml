@@ -60,7 +60,7 @@
     owner: root
     group: root
   loop:
-  - virtual.j2
+  - virtual
   - main.cf
   - master.cf
   - sql/virtual-alias-maps.cf

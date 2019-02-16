@@ -63,7 +63,7 @@ default_destination_recipient_limit = 10
 smtp_tls_loglevel            = 1
 smtp_tls_security_level      = dane
 smtp_dns_support_level       = dnssec
-smtp_tls_CAfile              = {{ .CAFILE }}
+smtp_tls_CAfile              = 
 smtp_tls_protocols           = !TLSv1, !SSLv2, !SSLv3
 smtp_tls_mandatory_protocols = !TLSv1, !SSLv2, !SSLv3
 smtp_tls_mandatory_ciphers   = medium
@@ -118,10 +118,10 @@ broken_sasl_auth_clients = yes
 # notify_classes = bounce, delay, resource, software
 notify_classes = resource, software
 
-error_notice_recipient     = postmaster@{{ .DOMAIN }}
-# delay_notice_recipient   = postmaster@{{ .DOMAIN }}
-# bounce_notice_recipient  = postmaster@{{ .DOMAIN }}
-# 2bounce_notice_recipient = postmaster@{{ .DOMAIN }}
+error_notice_recipient     = postmaster@{{ mailserver_domain }}
+# delay_notice_recipient   = postmaster@{{ mailserver_domain }}
+# bounce_notice_recipient  = postmaster@{{ mailserver_domain }}
+# 2bounce_notice_recipient = postmaster@{{ mailserver_domain }}
 
 ##################
 ## RESTRICTIONS ##

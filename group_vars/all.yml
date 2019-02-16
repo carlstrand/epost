@@ -22,6 +22,7 @@ mailserver_db_admin_password: 'password'
 mailserver_db_admin_username: 'root'
 mailserver_db_password: 'password'
 mailserver_db_username: 'mailuser'
+mailserver_db_host: 'localhost'
 
 mailserver_friendly_networks: []
 mailserver_header_privacy: 1
