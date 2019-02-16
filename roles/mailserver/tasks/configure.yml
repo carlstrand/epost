@@ -240,25 +240,46 @@
   tags:
     - skip_ansible_lint
 
-- name: Create database for OpenDMARC reports
-  postgresql_db:
-    login_host: '{{ mailserver_db_host }}'
-    login_user: '{{ mailserver_db_admin_username }}'
-    login_password: '{{ mailserver_db_admin_password }}'
-    name: '{{ mailserver_db_opendmarc_database }}'
-    state: present
-  register: mailserver_db_opendmarc_created
+    state: started
 
-- name: Create database user for OpenDMARC reports
-  postgresql_user:
-    append_privs: yes
-    login_host: '{{ mailserver_db_host }}'
-    login_user: '{{ mailserver_db_admin_username }}'
-    login_password: '{{ mailserver_db_admin_password }}'
-    name: '{{ mailserver_db_username }}'
-    password: '{{ mailserver_db_password }}'
+- name: PostgreSQL | Make sure the PostgreSQL databases are present
+  postgresql_db:
+    name: "{{item.name}}"
+    owner: "{{ item.owner | default(postgresql_database_owner) }}"
+    encoding: "{{ item.encoding | default(postgresql_encoding) }}"
+    lc_collate: "{{ item.lc_collate | default(postgresql_locale) }}"
+    lc_ctype: "{{ item.lc_ctype | default(postgresql_ctype) }}"
+    port: "{{postgresql_port}}"
+    template: "template0"
     state: present
-    priv: '{{ mailserver_db_opendmarc_database }}.*:ALL'
+    login_user: "{{postgresql_admin_user}}"
+  become: yes
+  become_user: "{{postgresql_admin_user}}"
+  loop: "{{postgresql_databases}}"
+  when: postgresql_databases|length > 0
+  register: db_is_present
+
+
+# - name: Create database for OpenDMARC reports
+#   postgresql_db:
+#     login_host: '{{ mailserver_db_host }}'
+#     login_user: '{{ postgresql_admin_user }}'
+#     login_password: '{{ mailserver_db_admin_password }}'
+#         port: "{{postgresql_port}}"
+#     name: '{{ mailserver_db_opendmarc_database }}'
+#     state: present
+#   register: mailserver_db_opendmarc_created
+
+# - name: Create database user for OpenDMARC reports
+#   postgresql_user:
+#     append_privs: yes
+#     login_host: '{{ mailserver_db_host }}'
+#     login_user: '{{ mailserver_db_admin_username }}'
+#     login_password: '{{ mailserver_db_admin_password }}'
+#     name: '{{ mailserver_db_username }}'
+#     password: '{{ mailserver_db_password }}'
+#     state: present
+#     priv: '{{ mailserver_db_opendmarc_database }}.*:ALL'
 
 - name: Copy opendmarc.sql
   template:
@@ -272,11 +293,10 @@
   postgresql_db:
     name: '{{ mailserver_db_opendmarc_database }}'
     state: restore
-    login_host: '{{ mailserver_db_host }}'
-    login_user: '{{ mailserver_db_username }}'
-    login_password: '{{ mailserver_db_password }}'
+    login_user: '{{ postgresql_admin_user }}'
+    template: "template0"
     target: /usr/share/doc/opendmarc/import.sql
-  when: mailserver_db_opendmarc_created.changed
+  when: db_is_present.changed
   tags:
     - skip_ansible_lint
   notify:
