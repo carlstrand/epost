@@ -3,12 +3,12 @@
 # ensure this script errors out if any of its steps do
 set -e
 
-DB_SERVER='{{ ansible_pdm_mailserver_db_host }}'
-DB_USER='{{ ansible_pdm_mailserver_db_username }}'
-DB_PASS='{{ ansible_pdm_mailserver_db_password }}'
-DB_NAME='{{ ansible_pdm_mailserver_db_opendmarc_database }}'
+DB_SERVER='{{ db_name_opendmarc }}'
+DB_USER='{{ mailserver_db_username }}'
+DB_PASS='{{ mailserver_db_password }}'
+DB_NAME='{{ mailserver_db_opendmarc_database }}'
 WORK_DIR='/var/run/opendmarc'
-REPORT_EMAIL='{{ ansible_pdm_mailserver_admin_email }}'
+REPORT_EMAIL='{{ mailserver_admin_email }}'
 
 mv ${WORK_DIR}/opendmarc.dat ${WORK_DIR}/opendmarc_import.dat -f
 touch ${WORK_DIR}/opendmarc.dat
@@ -16,7 +16,7 @@ chown opendmarc:opendmarc ${WORK_DIR}/opendmarc.dat
 
 /usr/sbin/opendmarc-import --dbhost=${DB_SERVER} --dbuser=${DB_USER} --dbpasswd=${DB_PASS} --dbname=${DB_NAME} --verbose < ${WORK_DIR}/opendmarc_import.dat
 
-{% for domain in ansible_pdm_mailserver_virtual_domains %}
+{% for domain in mailserver_virtual_domains %}
 /usr/sbin/opendmarc-reports --dbhost=${DB_SERVER} --dbuser=${DB_USER} --dbpasswd=${DB_PASS} --dbname=${DB_NAME} --verbose --interval=86400 --report-email $REPORT_EMAIL --report-org '{{ domain.name }}'
 {% endfor %}
 
