@@ -29,7 +29,7 @@
 #     password: '{{ mailserver_db_password }}'
 #     state: present
 #     host: '%'
-#     priv: '{{ mailserver_db_database }}.*:ALL'
+#     priv: '{{ db_name_dovecot }}.*:ALL'
 
 # - name: Copy import.sql
 #   template:
@@ -41,7 +41,7 @@
 
 # - name: Import sql postfix
 #   postgresql_db:
-#     name: '{{ mailserver_db_database }}'
+#     name: '{{ db_name_dovecot }}'
 #     state: restore
 #     login_host: '{{ mailserver_db_host }}'
 #     login_user: '{{ mailserver_db_username }}'

@@ -1,5 +1,5 @@
 user = {{ mailserver_db_username }}
 password = {{ mailserver_db_password }}
 hosts = {{ mailserver_db_host }}
-dbname = {{ mailserver_db_database }}
+dbname = {{ db_name_dovecot }}
 query = SELECT destination FROM virtual_aliases WHERE source='%s'
