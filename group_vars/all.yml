@@ -1,8 +1,8 @@
 
-
+ 
 # Databases
 #################################################################################
-
+ansible_distribution_release: bionic
 db_name_opendmarc: opendmarc
 db_name_dovecot: mailserver
 db_name_rcube: rcube
