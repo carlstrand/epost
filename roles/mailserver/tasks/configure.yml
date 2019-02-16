@@ -2,7 +2,7 @@
 - name: Ensure local hostnames
   lineinfile:
     dest: /etc/hosts
-    line: '127.0.0.1 localhost {{ ansible_hostname }} {{ mailserver_server_hostname }}'
+    line: '127.0.0.1 localhost {{ mailserver_domain }} {{ mailserver_server_hostname }}'
     regexp: ^127\.0\.0\.1
   when: local_env is not defined
 
