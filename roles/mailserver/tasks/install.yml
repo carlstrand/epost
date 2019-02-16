@@ -75,9 +75,9 @@
 - name: Create directory structure
   file:
     state: directory
-    path: '{{ item.path }}'
-    group: { { item.group } }
-    owner: { { item.owner } }
+    path: "{{ item.path }}"
+    group: "{{ item.group }}"
+    owner: "{{ item.owner }}"
   loop:
     - { path: '/etc/letsencrypt', group: root, owner: root }
     - { path: '/etc/letsencrypt/pre-renew', group: root, owner: root }
