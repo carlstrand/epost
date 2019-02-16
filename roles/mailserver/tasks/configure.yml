@@ -60,12 +60,12 @@
     owner: root
     group: root
   loop:
-    - virtual.j2
-    - main.cf
-    - master.cf
-    - sql/virtual-alias-maps.cf
-    - sql/virtual-mailbox-domains.cf
-    - sql/virtual-mailbox-maps.cf
+  - virtual.j2
+  - main.cf
+  - master.cf
+  - sql/virtual-alias-maps.cf
+  - sql/virtual-mailbox-domains.cf
+  - sql/virtual-mailbox-maps.cf
   notify:
     - restart postfix
 
@@ -567,8 +567,8 @@
   args:
     creates: '/etc/letsencrypt/live/{{ item }}/privkey.pem'
   with_items:
-    - '{{ mailserver_autoconfig_hostname }}'
-    - '{{ mailserver_server_hostname }}'
+  - '{{ mailserver_autoconfig_hostname }}'
+  - '{{ mailserver_server_hostname }}'
   when: local_env is defined
 
 - name: Set permissions on combined SSL certs
@@ -600,10 +600,10 @@
     name: '{{ item }}'
     state: started
   loop:
-    - rspamd
-    - fail2ban
-    - opendmarc
-    - opendkim
-    - postfix
-    - dovecot
-    - nginx
+  - rspamd
+  - fail2ban
+  - opendmarc
+  - opendkim
+  - postfix
+  - dovecot
+  - nginx

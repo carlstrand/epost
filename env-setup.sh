@@ -13,7 +13,7 @@ echo "deb http://rspamd.com/apt-stable/ bionic main" | sudo tee /etc/apt/sources
 
 curl -fsL --progress-bar https://nginx.org/keys/nginx_signing.key | sudo apt-key add - > /dev/null
 curl -fsL --progress-bar https://rspamd.com/apt-stable/gpg.key | sudo apt-key add - > /dev/null
-#curl -fsL --progress-bar https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -
+curl -fsL --progress-bar https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add - 
 
 sudo apt --quiet --yes update > /dev/null
 sudo apt --quiet --yes install software-properties-common

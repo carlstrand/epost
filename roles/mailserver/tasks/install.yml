@@ -1,5 +1,4 @@
 ---
-
 - name: Install necessities and nice-to-haves
   apt:
     pkg:
@@ -31,7 +30,7 @@
         'rsync',
         'rsyslog',
         'sasl2-bin',
-        'nodejs'
+        'nodejs',
       ]
     state: present
     update_cache: yes
@@ -73,25 +72,44 @@
   retries: 1
   when: mailserver_redis_install
 
-- name: Create directory for LetsEncrypt configuration and certificates
+- name: Create directory structure
   file:
     state: directory
-    path: '{{ item }}'
-    group: root
-    owner: root
+    path: '{{ item.path }}'
+    group: { { item.group } }
+    owner: { { item.owner } }
   loop:
-    - /etc/letsencrypt
-    - /etc/letsencrypt/pre-renew
-    - /etc/letsencrypt/post-renew
-    - /etc/letsencrypt/live
+    - { path: '/etc/letsencrypt', group: root, owner: root }
+    - { path: '/etc/letsencrypt/pre-renew', group: root, owner: root }
+    - { path: '/etc/letsencrypt/post-renew', group: root, owner: root }
+    - { path: '/etc/letsencrypt/live', group: root, owner: root }
+    - { path: '/etc/letsencrypt/archive', group: root, owner: root }
+    - { path: '/etc/nginx/sites-enabled', group: root, owner: root }
+    - { path: '/etc/nginx/sites-available', group: root, owner: root }
+    - { path: '/etc/postfix/maps', group: root, owner: root }
+    - { path: '/etc/opendkim', group: opendkim, owner: opendkim }
+    - { path: '/etc/opendmarc', group: root, owner: root }
+    - { path: '/var/www/autoconfig/mail', group: www-data, owner: root }
 
-- name: Modify permissions to allow ssl-cert group access
-  file:
-    path: /etc/letsencrypt/archive
-    owner: root
-    mode: 0750
-    state: directory
-  when: local_env is defined
+# - name: Create directory for LetsEncrypt configuration and certificates
+#   file:
+#     state: directory
+#     path: '{{ item }}'
+#     group: root
+#     owner: root
+#   loop:
+#     - /etc/letsencrypt
+#     - /etc/letsencrypt/pre-renew
+#     - /etc/letsencrypt/post-renew
+#     - /etc/letsencrypt/live
+
+# - name: Modify permissions to allow ssl-cert group access
+#   file:
+#     path: /etc/letsencrypt/archive
+#     owner: root
+#     mode: 0750
+#     state: directory
+#   when: local_env is defined
 
 - name: Install generate script for LetsEncrypt
   template:
@@ -114,18 +132,18 @@
   args:
     creates: /etc/ssl/private/dhparam2048.pem
 
-- name: Ensure Nginx site directories
-  file:
-    group: root
-    mode: 0755
-    owner: root
-    path: '{{ item }}'
-    state: directory
-  loop:
-    - /etc/nginx/sites-enabled
-    - /etc/nginx/sites-available
-  notify:
-    - reload nginx
+# - name: Ensure Nginx site directories
+#   file:
+#     group: root
+#     mode: 0755
+#     owner: root
+#     path: '{{ item }}'
+#     state: directory
+#   loop:
+#     - /etc/nginx/sites-enabled
+#     - /etc/nginx/sites-available
+#   notify:
+#     - reload nginx
 
 - name: Remove default Nginx site
   file:
@@ -147,13 +165,13 @@
   notify:
     - reload nginx
 
-- name: Create postfix maps directory
-  file:
-    path: /etc/postfix/maps
-    state: directory
-    owner: root
-    group: root
-  when: mailserver_header_privacy == 1
+# - name: Create postfix maps directory
+#   file:
+#     path: /etc/postfix/maps
+#     state: directory
+#     owner: root
+#     group: root
+#   when: mailserver_header_privacy == 1
 
 - name: Copy header_checks
   template:
@@ -191,12 +209,12 @@
     owner: root
     group: root
 
-- name: Create OpenDKIM config directory
-  file:
-    state: directory
-    path: /etc/opendkim
-    group: opendkim
-    owner: opendkim
+# - name: Create OpenDKIM config directory
+#   file:
+#     state: directory
+#     path: /etc/opendkim
+#     group: opendkim
+#     owner: opendkim
 
 - name: Put opendkim.conf into place
   template:
@@ -217,6 +235,7 @@
     - opendmarc-import
     - opendmarc-reports
     - opendmarc-params
+  ignore_errors: yes
 
 - name: Patch opendmarc scripts part deux (https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=742447)
   lineinfile:
@@ -226,11 +245,12 @@
   with_items:
     - opendmarc-reports
     - opendmarc-import
+  ignore_errors: yes
 
-- name: Create OpenDMARC configuration directory
-  file:
-    state: directory
-    path: /etc/opendmarc
+# - name: Create OpenDMARC configuration directory
+#   file:
+#     state: directory
+#     path: /etc/opendmarc
 
 - name: Copy OpenDMARC defaults file into place
   template:
@@ -256,17 +276,16 @@
     minute: '0'
     job: 'perl /opt/check-rbl.pl -i {{ default_ipv4.address }}'
   when: default_ipv4 is defined
+# - name: Create directory for mail autoconfiguration virtualhost
+#   file:
+#     state: directory
+#     path: /var/www/autoconfig
+#     group: www-data
+#     owner: root
 
-- name: Create directory for mail autoconfiguration virtualhost
-  file:
-    state: directory
-    path: /var/www/autoconfig
-    group: www-data
-    owner: root
-
-- name: Create directory holding the autoconfig XML file
-  file:
-    state: directory
-    path: /var/www/autoconfig/mail
-    group: www-data
-    owner: root
+# - name: Create directory holding the autoconfig XML file
+#   file:
+#     state: directory
+#     path: /var/www/autoconfig/mail
+#     group: www-data
+#     owner: root

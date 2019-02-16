@@ -14,7 +14,10 @@ curl -s $BOOTSTRAP_BASE_URL/env-apt.sh | sudo bash
 #curl -s $BOOTSTRAP_BASE_URL/locale-setup.sh | sudo bash
 
 mkdir -p $ANSIBLE_WORKDIR
-mkdir -p $PYPY3_BIN
+mkdir -p $PYPY3_BIN 
+
+wget -O tmp.tar.bz2 https://bitbucket.org/pypy/pypy/downloads/pypy3.5-v7.0.0-linux64.tar.bz2
+sudo tar -xf tmp.tar.bz2 -C /opt/pypy3.5-v7.0.0 --strip-components=1
 
 source ~/.bashrc 
 
@@ -34,7 +37,10 @@ source ./bin/activate
 
 sudo $PYPY3_BIN -m ensurepip
 sudo bin/pip3 install --upgrade pip
-sudo bin/pip3 install ansible-lint ansible-review
+sudo bin/pip3 install Jinja2 PyYAML paramiko cryptography ansible-lint ansible-review
+
+echo "Clean"
+git clean -x -f && git fetch origin && git reset --hard origin/dev
 
 
 #sudo pypy3 psqlcom.py
